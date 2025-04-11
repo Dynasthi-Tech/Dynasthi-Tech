@@ -1,0 +1,422 @@
+									        ================
+										Debian9(Stretch)
+										================
+
+
+=================					
+Setting interface
+=================
+	nano /etc/network/interface/
+	nano /etc/resolv.conf/
+	service networking restart
+=======================
+Setting DNS Konfigurasi
+=======================
+apt-get install bind9
+	cd /etc/bind/
+	nano named.conf.local
+	cp db.local db.aody (db.aody=nama terserah yang pentingn ada db. nya)
+	cp db.127 db.rido (sama atas)
+	nano db.aody (edit file tersebut)
+	nano db.rido (edit file tersebut)
+	service bind9 restart
+		
+
+		Cek apakah DNS sudah jalan atau belum
+			nslookup aody.net (nama domain yang telah disetting/dibuat di perintah "nano db.aody dan db.rido")
+			jika sudah keluar nama dan address nya maka sudah berhasil
+
+==================
+Setting Web server
+==================
+apt-get install apache2
+	cd /etc/apache2/sites-available/
+	cp 000- aody.conf
+	nano aody.conf
+	a2dissite 000-
+	a2ensite aody.conf
+	systemctl apache2 reload
+	service apache2 restart
+	cd /var/www/html
+	
+==================
+setting FTP server
+==================
+apt-get install proftpd
+	nano /etc/proftpd/proftpd.conf
+		(pada bagian bawah sendiri isi dengan)
+		<Anonymous /home/aody> (/home karena folder yg akan di share di ftp adalah folder home)
+		User aody (user masuk debian)
+		UserAlias anonymous aody (jika ingin ftp tidak menggunakan password)
+		</Anonymous>
+	service proftpd restart
+
+==================
+setting NTP Server
+==================
+apt-get install ntp ntpdate
+	nano /etc/ntp.conf
+		setting server 127.127.1.0
+		restrict diganti ip server dan di tambah "nomodify notrap"
+	service ntp restart
+		cek apakah sudah berhasil
+			ntpq -p (jika pada bagian ini jitter menunjukkan 0.001 atau 0.000 maka sudah berhasil
+		update waktu server dengan cara
+			ntpdate -u 127.0.0.1 (jika sudah berhasil akan ada messeage "adjust time server....")
+
+=========================
+setting HTTPS (web server)
+=========================
+pertama generate dengan perintah 
+	openssl req -new -x509 -days 365 -nodes -out /etc/apache2/apache2.pem -keyout
+	/etc/apache2/apache2.pem
+kemudian akan muncul seperti dibawah
+	Generating a 2048 bit RSA private key
+..............+++
+.............................................................................+++
+writing new private key to '/etc/apache2/apache2.pem'
+-----
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [AU]:ID
+State or Province Name (full name) [Some-State]:EAST JAVA
+Locality Name (eg, city) []:NGAWI
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:BLC
+Organizational Unit Name (eg, section) []:
+Common Name (e.g. server FQDN or YOUR name) []:SMK.NET
+Email Address []:ADMIN@SMK.NET
+			(tulisan yang berhuruf besar adala yang diisi, sebelumnya kosong)
+
+kemudian 
+	a2enmod ssl
+	systemctl restart apache2
+	nano /etc/apache2/ports.conf
+		(pastikan ada script
+				<Ifmodul mod.gnutls.c
+					Listen 443
+				</Ifmodule>
+	nano /etc/apache2/sites-availabel/aody.conf
+		(tambahkan script seperti dibawah pada bagian paling bawah)
+			<VirtualHost *:443>
+			ServerName aody.net (adalah nama DNS saya)
+			DocumentRoot /var/www/html/aody (itu adalah folder dimana index.html saya simpan dan gunakan)
+			SSLEngine on
+			SSLCertificateFile /etc/apache2/apache2.pem
+			</VirtualHost> (setelah selesai, ctrl+x,y,enter)
+	service apache2 restart
+
+
+=============
+setting Samba
+=============
+apt-get install samba
+	nano /etc/samba/samba.conf
+		(tambahkan baris ini)
+		[aody.net]
+		path = /home/aody
+		browseable = yes
+		writeable = yes
+		guest ok = no
+		public = no
+		read only = no
+		security = user
+	service samba restart
+
+=============
+setting cacti
+=============
+apt-get install cacti
+	service cacti restart
+
+===================
+setting Mail Server
+===================
+apt-get install postfix courier-imap courier-pop roundcube
+	maildirmake /etc/skel/Maildir
+	nano /etc/postfix/main.cf
+		(tambahkan konfigurasi "home_mailbox = Maildir/"
+	dpkg-reconfigure postfix
+	nano /etc/roundcube/apache.conf
+		<VirtualHost *:80>
+		ServerName mail.aody.net
+		DocumentRoot /var/lib/roundcube
+		</VirtualHost>
+	systemctl restart apache2
+	nano /etc/roundcube/config.inc.php
+		(edit baris berikut 
+				$config[‘default_host’]  =  ‘mail.aody.net’;
+
+				$config[‘smtp_server’]  =  ‘localhost’;
+	adduser nama_user
+	servcie postfix restart
+	servcie courier-imap restart
+	servcie courier-pop restart
+	servcie bind9 restart
+
+=======================
+VirtualHost(Sub Domain)
+=======================
+cd /etc/apache2/sites-available
+	cp 000 portal.conf
+	nano portal.conf
+		(setting seperti berikut)
+			<VirtualHost *:80>
+				ServerAdmin webmaster@localhost
+				ServerName portal.aody.net
+				DocumentRoot /var/www/html/portal
+			</VirtualHost>
+	cd /var/www/html
+	mkdir portal
+	cp index.html portal
+	service apache2 restart
+
+=================
+DNS Trust+Positif
+=================
+cd /etc/bind
+	nano named.conf.option
+	====	(ganti baris seperti di bawah, default nya "0.0.0.0")
+		forwaders {
+		      8.8.8.8;
+		};
+	====	(ganti "auto" menjadi "no" pada baris berikut)
+		dnssec-validation no;
+	====	(tambahkan script berikut di bawah "listen-on ....")
+		response-policy { zone "rpz.zone"; };
+	====	(tambahkan script berikut dibagian paling bawah)
+		zone "rpz.zone" {
+		type master ;
+		file "/etc/bind/db.rpz";
+		};
+	cp db.local db.rpz
+	nano db.rpz
+		(ganti kata localhost menjadi rpz.zone dan ip 127.0.0.1 menjadi ipserver)
+	nano blokir (isi kata situs yang akan di redirect/bisa download di trust positif kominfo)
+	service bind9 restart
+	nslookup rpz.zone (jika settingan berhasil maka akan muncul ip addreas pada rpz.zone)
+	awk -v RS='\r\n' '{print $1" IN CNAME www"}' blok >> db.rpz (untuk memasukkan domain yang di isi pada file "blokir")
+	service bind9 restart
+
+=======
+LDAP
+=======
+apt-get install slapd ldap-utils phpldapadmin (jika phpldapadmin tidak bisa,download secara manual di "https://packages.debian.org/sid/all/phpldapadmin/download")
+	apt-get -f install (di direktori tempat download an tadi)
+	nano /etc/slapd/ldap.conf
+		(edit bagian dibawah)
+		BASE dc=aody,dc=net
+		URI ldap://ldap.aody.net ldap://ldap.aody.net:666
+	dpkg-reconfigure slapd
+		omit = no
+		DNS Domain = aody.net
+		Organization name = aody
+		pass = admin
+		database use = MBD
+		remove purged = no
+		move old = yes
+		allow = no
+	slappasswd
+	nano /etc/phpldapadmin/config.php
+		(edit pada line 293,300,326. pada line 293 ganti ip loopback menjadi ipserver, line 300 ganti domai server, line 326 ganti domain server)
+	service slapd restart
+	(cek http://ip_server/phpldapadmin)
+
+
+=======
+Netdata
+=======config "#
+apt-get install zlib1g-dev uuid-dev libmnl-dev pkg-config curl gcc make autoconf autoconf-archive autogen automake python python-yaml python-mysqldb nodejs lm-sensors python-psycopg2 netcat git -y
+git clone https://github.com/firehol/netdata.git --depth=1 ~/netdata
+cd netdata
+./netdata-installer.sh
+systemctl netdata start
+	apt-get install ufw -y
+	ufw enable
+	ufw allow 19999/tcp
+	ufw reload
+
+
+=====================
+Certificate Authority
+=====================
+mkdir cert (ke menu awal atau root)
+cd /cert
+openssl genrsa -out client.key 4096 (client.key adalah nama dari file private key yang akan menjadi kuncinya)
+	nano /etc/ssl/openssl.cnf (edit "countryName dan organizationName_default". countryName = ID , organization = LKS2018 )
+	openssl req -new -key client.key -out client.csr (dimana client.csr adalah nama untuk sertifikat permohonan yang akan diajukan ke CA. nama bebas tidak harus "client")
+mkdir CA (buat folder di menu cert)
+cd /CA
+	mkdir certs newcerts crl
+	touch index.txt
+	echo 0000 > serial
+	openssl genrsa -out CA.key 4096 (CA.key adalaha private key yang akan dibutuhkan oleh file config CA nantinya)\
+	openssl req -x509 -new -key CA.key -out CA.crt -days 7200 (CA.crt adalah nama dari CA root nya)
+cd /cert
+	cp /etc/ssl/openssl.cnf CA.conf (file dari /etc/ssl/openssl.cnf akan di copy di menu cert pada sebuah file yang bernama CA.conf. nama dari CA.conf bebas, yg penting ada ".conf" nya)
+	nano CA.conf (cari akta "dir" dengan perinta ctrl+w, lalu cari kata "dir" dan ubah folder nya ke ./CA, certificate ganti dengan nama CA root yang telah dibuat tadi yaitu "CA.crt", privaten key ganti dengan CA.key, default_md ganti sha256, policy ganti policy anything)
+	openssl ca -config CA.conf -in client.csr (penandatanganan yang file csr yang sudah diajukan oleh client)
+		(dan akan ada file baru yang ada pada menu CA/newcerts yaitu 00.pem, yang dimana itu adalah sebuah file yang sudah ditanda tangani oleh CA)
+	mv /CA/newcerts/00.pem client.crt (dilakukan di direktori /cert)
+
+	
+========	
+HAProxy	
+========
+apt-get install haproxy
+	nano /etc/default/haproxy
+x		(hilangkan tanda pagar pada config "#CONFIG" )
+	nano /etc/haproxy/haproxy.cfg
+		(tambahkan baris berikut)
+		frontend header
+		        bind *:80
+        		mode http
+        		default_backend footer
+
+		backend footer
+	        	mode http
+        		balance roundrobin
+       			server web1 20.20.20.3:80 check
+       			server wbe2 33.33.33.2:80 check
+	service haproxy restart
+
+
+==============
+DNSMasterSlave
+==============
+nano named.conf.default-zone
+	(setting seperti berikut)
+		zone "aody.net" IN {
+	        type master;
+        	file "/etc/bind/db.aody";
+        	allow-update {none;};
+		};
+		
+		zone "20.20.20.in-addr.arpa" {
+        	type master;
+        	file "/etc/bind/db.192";
+        	allow-update {none;};
+		};
+		
+		zone "33.33.33.in-addr.arpa" {
+	        type master;
+        	file "/etc/bind/db.192";
+        	allow-update {none;};
+		};
+
+nano db.aody
+	(setting seperti berikut)
+;
+; BIND data file for local loopback interface
+;
+$TTL    604800
+@       IN      SOA     aody.net. root.aody.net. (
+                               2        ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+;
+@       IN      NS      ns1.aody.net.
+@       IN      NS      ns2.aody.net.
+@       IN      A       20.20.20.3
+@       IN      A       33.33.33.2
+@       IN      A       20.20.20.3
+ns1     IN      A       20.20.20.3
+ns2     IN      A       33.33.33.2
+www     IN      A       20.20.20.3
+
+nano db.192
+	(setting seperti berikut)
+;
+; BIND reverse data file for local loopback interface
+;
+$TTL    604800
+@       IN      SOA     aody.net. root.aody.net. (
+                                1       ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+;
+@       IN      NS      ns1.aody.net.
+@       IN      NS      ns2.aody.net.
+@       IN      PTR     aody.net.
+ns1     IN      A       20.20.20.3
+ns2     IN      A       33.33.33.2
+www     IN      A       20.20.20.3
+3       IN      PTR     ns1.aody.net
+2       IN      PTR     ns2.aody.net
+3       IN      PTR     www.aody.net
+
+nano named.conf.default-zone (di server 2)
+	(setting seperti berikut)
+zone "aody.net" IN {
+        type slave;
+        file "/etc/bind/db.aody";
+        masters { 20.20.20.3; };
+        allow-update {none;};
+};
+zone "33.33.33.in-addr.arpa" {
+        type slave;
+        file "/etc/bind/db.192";
+        masters { 20.20.20.3; };
+        allow-update {none;};
+};
+
+(db.aody dan db.192 nya sama dengan server 1)
+service bind9 restart
+
+
+
+==========
+PHPMYADMIN
+==========
+apt-get install mysql-server mysq-client
+	common = yes
+	pass	= admin
+	(jika sudah berhasil maka bisa masuk perintah "mysql -u root -p" lalu masukan password yang dibuat tadi, jika berhasil maka akan pindah ke menu root "MariaDB")
+apt-get install phpmyadmin
+	mariadb -u root -p
+	CREATE USER 'aody'@'localhost' IDENTIFIED BY '1';
+	GRANT ALL PRIVILEGES ON *.* TO 'sammy'@'localhost' WITH GRANT OPTION;
+	exit
+service apache2 restart
+service bind9 restart
+cek ip dan tambahkan "/phpmyadmin"
+
+
+=============
+CMS Wordpress
+=============
+donwload file wordpress nya di "https://filehippo.com/download_wordpress/"
+pindahkan file tersebut ke server dengan winscp atau filezilla
+unzip file tersebut (jika belum bisa "apt-get install unzip")
+	mv wordpress /var/www/ (pindahkan jika sudah selesai di unzip)
+	ls /var/www/ (cek di direktori tersebut)
+	cd /etc/apache2/sites-available/ (pindah ke dir tersebut)
+	cp 000 aody.conf
+	nano aody.conf (arahkan DocumentRoot ke /var/www/wordpress dan serveradmin menjadi aody.net)
+	a2dissite 000
+	a2ensite aody.conf
+	systemctl reload apache2
+	service apache2 restart
+(buka phpmyadmin) aody.net/phpmyadmin
+(login dengan user pass yang dibuat sebelunya)
+(lalu buat database untuk wordpress nantinya)
+(jika sudah buka wordpressnya dengan domain atau ip saja)
+masukkan database yang telah dibuat
+database = aody.net
+username = aody
+pass	 = 1
+email	 = admin@aody.net
+	 = localhost
+
+jikak error copy script wp-config.php 
+buat file baru dengan nama wp-config.php lalu paste kan script yang error tadi ke wp-config.php
+pindahkan wp-config.php ke /var/www/wordpress
+coba lagi dan akan bisa		
