@@ -16,6 +16,7 @@ I bridge the gap between robust infrastructure and intelligent code. With a stro
 ### 🛠️ Tech Stack
 
 **Networking Hardware & Vendors**
+
 ![MikroTik](https://img.shields.io/badge/Mikrotik-E61B23?style=for-the-badge&logo=mikrotik&logoColor=white)
 ![Juniper](https://img.shields.io/badge/Juniper-000000?style=for-the-badge&logo=junipernetworks&logoColor=white)
 ![Cisco](https://img.shields.io/badge/Cisco-1BA0D7?style=for-the-badge&logo=cisco&logoColor=white)
@@ -24,6 +25,7 @@ I bridge the gap between robust infrastructure and intelligent code. With a stro
 ![Ruijie](https://img.shields.io/badge/Ruijie-E60012?style=for-the-badge&logo=ruijie&logoColor=white)
 
 **Systems & Development**
+
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
 ![Red Hat](https://img.shields.io/badge/Red%20Hat-EE0000?style=for-the-badge&logo=redhat&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
